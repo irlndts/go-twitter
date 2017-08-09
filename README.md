@@ -1,2 +1,2 @@
 # go-twitter
-Golang client for Twitter API
+Golang client for Twitter REST API
