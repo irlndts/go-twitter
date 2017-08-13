@@ -1,9 +1,16 @@
 package main
 
 import (
-	"githab.com/irlndts/go-twitter"
+	"fmt"
+	"github.com/irlndts/go-twitter"
 )
 
 func main() {
-
+	consumer := ""
+	secret := ""
+	bearer, err := twitter.Auth(consumer, secret)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(bearer)
 }
