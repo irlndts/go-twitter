@@ -1,16 +1,16 @@
 package main
 
-import (
-	"fmt"
-	"github.com/irlndts/go-twitter"
-)
+import "github.com/irlndts/go-twitter"
 
 func main() {
 	consumer := ""
 	secret := ""
-	bearer, err := twitter.Auth(consumer, secret)
+	twitter, err := twitter.Auth(consumer, secret)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(bearer)
+
+	if err = twitter.Statuses.UserTimeline("irlndts"); err != nil {
+		panic(err)
+	}
 }
