@@ -3,14 +3,16 @@ package main
 import "github.com/irlndts/go-twitter"
 
 func main() {
-	consumer := ""
-	secret := ""
-	twitter, err := twitter.Auth(consumer, secret)
-	if err != nil {
-		panic(err)
-	}
+	twitter.Auth()
 
-	if err = twitter.Statuses.UserTimeline("irlndts"); err != nil {
-		panic(err)
-	}
+	/*
+		twitter, err := twitter.Auth(consumer, secret)
+		if err != nil {
+			panic(err)
+		}
+
+		if err = twitter.Statuses.UserTimeline("irlndts"); err != nil {
+			panic(err)
+		}
+	*/
 }
