@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -49,7 +48,7 @@ type Oauth struct {
 	CallbackConfirmed string
 }
 
-func NewTwitterClient(consumerKey, consumerSecret string) *Twitter {
+func NewTwitterClient(consumerKey, consumerSecret string) (*Twitter, error) {
 	twitter := &Twitter{
 		oauth: Oauth{
 			ConsumerKey:     consumerKey,
@@ -59,23 +58,20 @@ func NewTwitterClient(consumerKey, consumerSecret string) *Twitter {
 		},
 	}
 
-	return twitter
+	if err := twitter.requestToken(); err != nil {
+		return nil, err
+	}
+
+	return twitter, nil
 }
 
-func (t *Twitter) OauthAuthorizationHeader(method, uri string) string {
-	oauth_timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	oauth_nonce := t.nonce()
-
-	v := url.Values{}
-	v.Set("oauth_nonce", oauth_nonce)
-	v.Set("oauth_timestamp", oauth_timestamp)
+// oauthAuthorizationHeader prepares authorization header
+func (t *Twitter) oauthAuthorizationHeader(method, uri string, v url.Values) string {
+	v.Set("oauth_nonce", t.nonce())
+	v.Set("oauth_timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	v.Set("oauth_consumer_key", t.oauth.ConsumerKey)
 	v.Set("oauth_signature_method", t.oauth.SignatureMethod)
 	v.Set("oauth_version", t.oauth.Version)
-	v.Set("oauth_token", t.oauth.Token)
-	//v.Set("oauth_callback", "oob")
-	//v.Set("oauth_verifier", "5555915")
-	v.Set("status", "TEST")
 	parameterString := v.Encode()
 
 	signatureBaseString := strings.Join([]string{
@@ -85,31 +81,29 @@ func (t *Twitter) OauthAuthorizationHeader(method, uri string) string {
 	}, "&")
 
 	signingKey := url.QueryEscape(t.oauth.ConsumerSecret) + "&"
+	// authorization request doesn't have oauth_token_secret
 	if t.oauth.TokenSecret != "" {
 		signingKey = signingKey + url.QueryEscape(t.oauth.TokenSecret)
 	}
 
 	mac := hmac.New(sha1.New, []byte(signingKey))
 	mac.Write([]byte(signatureBaseString))
+	v.Set("oauth_signature", base64.URLEncoding.EncodeToString(mac.Sum(nil)))
 
-	oauth_signature := base64.URLEncoding.EncodeToString(mac.Sum(nil))
-
-	authorization := `OAuth ` +
-		`oauth_consumer_key="` + url.QueryEscape(t.oauth.ConsumerKey) + `", ` +
-		`oauth_nonce="` + url.QueryEscape(oauth_nonce) + `", ` +
-		`oauth_signature="` + url.QueryEscape(oauth_signature) + `", ` +
-		`oauth_signature_method="` + url.QueryEscape(t.oauth.SignatureMethod) + `", ` +
-		`oauth_timestamp="` + url.QueryEscape(oauth_timestamp) + `", ` +
-		`oauth_token="` + url.QueryEscape(t.oauth.Token) + `", ` +
-		`oauth_version="` + url.QueryEscape(t.oauth.Version) + `"`
-	fmt.Println(authorization)
-
-	return authorization
+	var oauths []string
+	for k, _ := range v {
+		// get only oauth_ params to set them into authorization string
+		if strings.HasPrefix(k, "oauth_") {
+			oauths = append(oauths, k+`="`+url.QueryEscape(v.Get(k))+`"`)
+		}
+	}
+	return `OAuth ` + strings.Join(oauths, ", ")
 }
 
 func (t *Twitter) Update(status string) {
 
-	authorization := t.OauthAuthorizationHeader("POST", twitterStatusesUpdate)
+	v := url.Values{}
+	authorization := t.oauthAuthorizationHeader("POST", twitterStatusesUpdate, v)
 
 	body := strings.NewReader("status=" + status)
 
@@ -142,7 +136,8 @@ func (t *Twitter) Update(status string) {
 
 func (t *Twitter) AccessToken(code string) {
 
-	authorization := t.OauthAuthorizationHeader("POST", twitterAccessTokenURL)
+	v := url.Values{}
+	authorization := t.oauthAuthorizationHeader("POST", twitterAccessTokenURL, v)
 	body := strings.NewReader("oauth_verifier=" + code)
 
 	req, err := http.NewRequest("POST", twitterAccessTokenURL, body)
@@ -172,38 +167,46 @@ func (t *Twitter) AccessToken(code string) {
 
 }
 
-func (t *Twitter) Login() {
+func (t *Twitter) requestToken() error {
 
-	authorization := t.OauthAuthorizationHeader("POST", twitterRequestTokenURL)
-	body := strings.NewReader("oauth_callback=oob")
+	v := url.Values{}
+	v.Set("oauth_callback", "oob")
 
-	req, err := http.NewRequest("POST", twitterRequestTokenURL, body)
-	req.Header.Add("Authorization", authorization)
+	req, err := http.NewRequest("POST", twitterRequestTokenURL, nil)
+	if err != nil {
+		return err
+	}
+
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("User-Agent", userAgent)
+	req.Header.Add("Authorization",
+		t.oauthAuthorizationHeader("POST", twitterRequestTokenURL, v))
 
 	client := &http.Client{Timeout: time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("response status=%d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	m, err := url.ParseQuery(string(bodyBytes))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
+	// set result
 	t.oauth.Token = m.Get("oauth_token")
 	t.oauth.TokenSecret = m.Get("oauth_token_secret")
 	t.oauth.CallbackConfirmed = m.Get("oauth_callback_confirmed")
-
-	fmt.Printf("%+v", t.oauth)
+	return nil
 }
 
 // AuthAOA registers in twitter API and returns bearer key
@@ -226,7 +229,7 @@ func AuthAOA(consumer, secret string) (*Twitter, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s is not available: code=%s", twitterAuth, resp.StatusCode)
+		return nil, fmt.Errorf("%s is not available: code=%d", twitterAuth, resp.StatusCode)
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

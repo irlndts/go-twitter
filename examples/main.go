@@ -1,13 +1,20 @@
 package main
 
-import "github.com/irlndts/go-twitter"
+import (
+	"fmt"
+
+	"github.com/irlndts/go-twitter"
+)
 
 func main() {
 	consumer := ""
 	secret := ""
-	twitter := twitter.NewTwitterClient(consumer, secret)
-	//twitter.Login()
-	twitter.Update("TEST")
+	twitter, err := twitter.NewTwitterClient(consumer, secret)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(twitter)
+	//twitter.Update("TEST")
 	/*
 		twitter, err := twitter.Auth(consumer, secret)
 		if err != nil {
