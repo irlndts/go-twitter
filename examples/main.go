@@ -3,8 +3,8 @@ package main
 import "github.com/irlndts/go-twitter"
 
 func main() {
-	twitter.Auth()
-
+	twitter := twitter.NewTwitterClient(consumer, secret)
+	twitter.Login()
 	/*
 		twitter, err := twitter.Auth(consumer, secret)
 		if err != nil {
