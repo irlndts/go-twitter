@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -16,13 +17,16 @@ func newStatuses(token Token) *Statuses {
 	return &Statuses{token: token}
 }
 
-func (s *Statuses) Update(status string) error {
-	body := strings.NewReader("status=" + status)
+func (t *Twitter) Update(status string) error {
+	v := url.Values{}
+	v.Set("status", status)
 
-	req, err := http.NewRequest("POST", twitterAPI+`statuses/update.json`, body)
+	req, err := http.NewRequest("POST", twitterStatusesUpdate, strings.NewReader(v.Encode()))
 	req.Header.Add("Content-Type", contentType)
-	req.Header.Add("Authorization", "Bearer "+s.token.AccessToken)
 	req.Header.Add("User-Agent", userAgent)
+	req.Header.Add("Authorization",
+		t.oauthAuthorizationHeader("POST", twitterStatusesUpdate, v),
+	)
 
 	client := &http.Client{Timeout: time.Second}
 	resp, err := client.Do(req)
@@ -31,18 +35,18 @@ func (s *Statuses) Update(status string) error {
 	}
 	defer resp.Body.Close()
 
-	/*
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("%s is not available: code=%s", twitterAuth, resp.StatusCode)
-		}
-	*/
-	/*
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-	*/
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
 
+	/*
+		        m, err := url.ParseQuery(string(bodyBytes))
+				        if err != nil {
+							            log.Fatal(err)
+										        }
+	*/
+	fmt.Println(string(bodyBytes))
 	return nil
 }
 
