@@ -1,6 +1,7 @@
 package twitter
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha1"
@@ -10,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -61,11 +63,9 @@ func NewTwitterClient(consumerKey, consumerSecret string) (*Twitter, error) {
 		},
 	}
 
-	/*
-		if err := twitter.requestToken(); err != nil {
-			return nil, err
-		}
-	*/
+	if err := twitter.requestToken(); err != nil {
+		return nil, err
+	}
 
 	return twitter, nil
 }
@@ -88,7 +88,8 @@ func (t *Twitter) oauthAuthorizationHeader(method, uri string, v url.Values) str
 	signatureBaseString := strings.Join([]string{
 		method,
 		url.QueryEscape(uri),
-		url.QueryEscape(v.Encode()),
+		// TODO(irlndts): can't user v.Encode(), see https://github.com/golang/go/issues/4013
+		url.QueryEscape(normalizeParameters(v)),
 	}, "&")
 
 	signingKey := url.QueryEscape(t.oauth.ConsumerSecret) + "&"
@@ -116,7 +117,7 @@ func (t *Twitter) AccessToken(code string) error {
 	v := url.Values{}
 	v.Set("oauth_verifier", code)
 
-	req, err := http.NewRequest("POST", twitterAccessTokenURL, strings.NewReader(v.Encode()))
+	req, err := http.NewRequest("POST", twitterAccessTokenURL, strings.NewReader(normalizeParameters(v)))
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("User-Agent", userAgent)
 	req.Header.Add("Authorization",
@@ -241,4 +242,47 @@ func (t *Twitter) nonce() string {
 		}
 	}
 	return nonce
+}
+
+// PercentEncode percent encodes a string according to RFC 3986 2.1.
+func PercentEncode(input string) string {
+	var buf bytes.Buffer
+	for _, b := range []byte(input) {
+		// if in unreserved set
+		if shouldEscape(b) {
+			buf.Write([]byte(fmt.Sprintf("%%%02X", b)))
+		} else {
+			// do not escape, write byte as-is
+			buf.WriteByte(b)
+		}
+	}
+	return buf.String()
+}
+
+// RFC 3986 2.1.
+func shouldEscape(c byte) bool {
+	// RFC3986 2.3 unreserved characters
+	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' {
+		return false
+	}
+	switch c {
+	case '-', '.', '_', '~':
+		return false
+	}
+	// all other bytes must be escaped
+	return true
+}
+
+func normalizeParameters(v url.Values) string {
+	params := make([]string, 0, len(v))
+	keys := make([]string, 0, len(v))
+	for k := range v {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		params = append(params, fmt.Sprintf("%s=%s", PercentEncode(k), PercentEncode(v.Get(k))))
+	}
+	return strings.Join(params, "&")
 }
