@@ -17,7 +17,7 @@ func main() {
 		return
 	}
 
-	fmt.Printf("visit %s\nenter the code:", twitter.OauthAuthenticateString())
+	fmt.Printf("visit %s\nenter the code:", twitter.OAuthAuthentificateURL())
 	reader := bufio.NewReader(os.Stdin)
 	code, err := reader.ReadString('\n')
 	if err != nil {
@@ -30,7 +30,7 @@ func main() {
 		return
 	}
 
-	if err = twitter.Update("Hello there!"); err != nil {
+	if err = twitter.Update("Oi!"); err != nil {
 		fmt.Println(err)
 	}
 }

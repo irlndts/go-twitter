@@ -1,21 +1,14 @@
 package twitter
 
 import (
-	"bytes"
-	"crypto/hmac"
-	"crypto/rand"
-	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
-	"unicode"
 )
 
 const (
@@ -33,16 +26,19 @@ const (
 	userAgent   = "go-twitter v0.1"
 )
 
+// Twitter ...
 type Twitter struct {
 	oauth    Oauth
 	Statuses *Statuses
 }
 
+// Token ...
 type Token struct {
 	Type        string `json:"token_type"`
 	AccessToken string `json:"access_token"`
 }
 
+// Oauth ...
 type Oauth struct {
 	ConsumerKey       string
 	ConsumerSecret    string
@@ -51,67 +47,36 @@ type Oauth struct {
 	Token             string
 	TokenSecret       string
 	CallbackConfirmed string
+
+	AOAToken Token
 }
 
+// New TwitterClient ...
 func NewTwitterClient(consumerKey, consumerSecret string) (*Twitter, error) {
-	twitter := &Twitter{
-		oauth: Oauth{
-			ConsumerKey:     consumerKey,
-			ConsumerSecret:  consumerSecret,
-			Version:         "1.0",
-			SignatureMethod: "HMAC-SHA1",
-		},
+	oauth := Oauth{
+		ConsumerKey:     consumerKey,
+		ConsumerSecret:  consumerSecret,
+		Version:         "1.0",
+		SignatureMethod: "HMAC-SHA1",
 	}
 
-	if err := twitter.requestToken(); err != nil {
+	if err := oauth.requestToken(); err != nil {
 		return nil, err
 	}
 
-	return twitter, nil
+	fmt.Println(oauth)
+	return &Twitter{
+		oauth:    oauth,
+		Statuses: newStatuses(oauth),
+	}, nil
 }
 
-func (t *Twitter) OauthAuthenticateString() string {
+// OAuthAuthentificateURL ...
+func (t *Twitter) OAuthAuthentificateURL() string {
 	return twitterOauthAuthenticateURL + "?oauth_token=" + t.oauth.Token
 }
 
-// oauthAuthorizationHeader prepares authorization header
-func (t *Twitter) oauthAuthorizationHeader(method, uri string, v url.Values) string {
-	v.Set("oauth_nonce", t.nonce())
-	v.Set("oauth_timestamp", strconv.FormatInt(time.Now().Unix(), 10))
-	v.Set("oauth_consumer_key", t.oauth.ConsumerKey)
-	v.Set("oauth_signature_method", t.oauth.SignatureMethod)
-	v.Set("oauth_version", t.oauth.Version)
-	if t.oauth.Token != "" {
-		v.Set("oauth_token", t.oauth.Token)
-	}
-
-	signatureBaseString := strings.Join([]string{
-		method,
-		url.QueryEscape(uri),
-		// TODO(irlndts): can't user v.Encode(), see https://github.com/golang/go/issues/4013
-		url.QueryEscape(normalizeParameters(v)),
-	}, "&")
-
-	signingKey := url.QueryEscape(t.oauth.ConsumerSecret) + "&"
-	// authorization request doesn't have oauth_token_secret
-	if t.oauth.TokenSecret != "" {
-		signingKey = signingKey + url.QueryEscape(t.oauth.TokenSecret)
-	}
-
-	mac := hmac.New(sha1.New, []byte(signingKey))
-	mac.Write([]byte(signatureBaseString))
-	v.Set("oauth_signature", base64.URLEncoding.EncodeToString(mac.Sum(nil)))
-
-	var oauths []string
-	for k, _ := range v {
-		// get only oauth_ params to set them into authorization string
-		if strings.HasPrefix(k, "oauth_") && k != "oauth_verifier" {
-			oauths = append(oauths, k+`="`+url.QueryEscape(v.Get(k))+`"`)
-		}
-	}
-	return `OAuth ` + strings.Join(oauths, ", ")
-}
-
+// AccessToken ...
 func (t *Twitter) AccessToken(code string) error {
 
 	v := url.Values{}
@@ -121,7 +86,7 @@ func (t *Twitter) AccessToken(code string) error {
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("User-Agent", userAgent)
 	req.Header.Add("Authorization",
-		t.oauthAuthorizationHeader("POST", twitterAccessTokenURL, v),
+		oauthAuthorizationHeader(t.oauth, "POST", twitterAccessTokenURL, v),
 	)
 
 	client := &http.Client{Timeout: time.Second}
@@ -151,7 +116,7 @@ func (t *Twitter) AccessToken(code string) error {
 	return nil
 }
 
-func (t *Twitter) requestToken() error {
+func (oauth *Oauth) requestToken() error {
 	v := url.Values{}
 	v.Set("oauth_callback", "oob")
 
@@ -163,7 +128,7 @@ func (t *Twitter) requestToken() error {
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("User-Agent", userAgent)
 	req.Header.Add("Authorization",
-		t.oauthAuthorizationHeader("POST", twitterRequestTokenURL, v))
+		oauthAuthorizationHeader(*oauth, "POST", twitterRequestTokenURL, v))
 
 	client := &http.Client{Timeout: time.Second}
 	resp, err := client.Do(req)
@@ -186,9 +151,9 @@ func (t *Twitter) requestToken() error {
 	}
 
 	// set result
-	t.oauth.Token = m.Get("oauth_token")
-	t.oauth.TokenSecret = m.Get("oauth_token_secret")
-	t.oauth.CallbackConfirmed = m.Get("oauth_callback_confirmed")
+	oauth.Token = m.Get("oauth_token")
+	oauth.TokenSecret = m.Get("oauth_token_secret")
+	oauth.CallbackConfirmed = m.Get("oauth_callback_confirmed")
 	return nil
 }
 
@@ -219,70 +184,12 @@ func AuthAOA(consumer, secret string) (*Twitter, error) {
 		return nil, err
 	}
 
-	var token Token
-	if err = json.Unmarshal(bodyBytes, &token); err != nil {
+	var oauth Oauth
+	if err = json.Unmarshal(bodyBytes, &oauth.AOAToken); err != nil {
 		return nil, err
 	}
 
 	return &Twitter{
-		Statuses: newStatuses(token),
+		Statuses: newStatuses(oauth),
 	}, nil
-}
-
-func (t *Twitter) nonce() string {
-	token := make([]byte, 32)
-	rand.Read(token)
-
-	var nonce string
-
-	encoded := base64.StdEncoding.EncodeToString(token)
-	for _, e := range encoded {
-		if unicode.IsLetter(e) {
-			nonce += string(e)
-		}
-	}
-	return nonce
-}
-
-// PercentEncode percent encodes a string according to RFC 3986 2.1.
-func PercentEncode(input string) string {
-	var buf bytes.Buffer
-	for _, b := range []byte(input) {
-		// if in unreserved set
-		if shouldEscape(b) {
-			buf.Write([]byte(fmt.Sprintf("%%%02X", b)))
-		} else {
-			// do not escape, write byte as-is
-			buf.WriteByte(b)
-		}
-	}
-	return buf.String()
-}
-
-// RFC 3986 2.1.
-func shouldEscape(c byte) bool {
-	// RFC3986 2.3 unreserved characters
-	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' {
-		return false
-	}
-	switch c {
-	case '-', '.', '_', '~':
-		return false
-	}
-	// all other bytes must be escaped
-	return true
-}
-
-func normalizeParameters(v url.Values) string {
-	params := make([]string, 0, len(v))
-	keys := make([]string, 0, len(v))
-	for k := range v {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, k := range keys {
-		params = append(params, fmt.Sprintf("%s=%s", PercentEncode(k), PercentEncode(v.Get(k))))
-	}
-	return strings.Join(params, "&")
 }

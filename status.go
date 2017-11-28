@@ -10,11 +10,11 @@ import (
 )
 
 type Statuses struct {
-	token Token
+	oauth Oauth
 }
 
-func newStatuses(token Token) *Statuses {
-	return &Statuses{token: token}
+func newStatuses(oauth Oauth) *Statuses {
+	return &Statuses{oauth: oauth}
 }
 
 func (t *Twitter) Update(status string) error {
@@ -25,7 +25,7 @@ func (t *Twitter) Update(status string) error {
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("User-Agent", userAgent)
 	req.Header.Add("Authorization",
-		t.oauthAuthorizationHeader("POST", twitterStatusesUpdate, v),
+		oauthAuthorizationHeader(t.oauth, "POST", twitterStatusesUpdate, v),
 	)
 
 	client := &http.Client{Timeout: time.Second}
@@ -35,17 +35,12 @@ func (t *Twitter) Update(status string) error {
 	}
 	defer resp.Body.Close()
 
-	_, err = ioutil.ReadAll(resp.Body)
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
+	fmt.Println(string(bodyBytes))
 
-	/*
-		        m, err := url.ParseQuery(string(bodyBytes))
-				        if err != nil {
-							            log.Fatal(err)
-										        }
-	*/
 	return nil
 }
 
@@ -55,7 +50,7 @@ func (s *Statuses) UserTimeline(name string) error {
 
 	req, err := http.NewRequest("GET", url, nil)
 	req.Header.Add("Content-Type", contentType)
-	req.Header.Add("Authorization", "Bearer "+s.token.AccessToken)
+	req.Header.Add("Authorization", "Bearer "+s.oauth.AOAToken.AccessToken)
 	req.Header.Add("User-Agent", userAgent)
 
 	client := &http.Client{Timeout: time.Second}
