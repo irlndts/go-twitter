@@ -35,7 +35,7 @@ func (t *Twitter) Update(status string) error {
 	}
 	defer resp.Body.Close()
 
-	_, err := ioutil.ReadAll(resp.Body)
+	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (s *Statuses) UserTimeline(name string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%s is not available: code=%s", url, resp.StatusCode)
 	}
-	_, err := ioutil.ReadAll(resp.Body)
+	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}

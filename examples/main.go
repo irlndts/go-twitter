@@ -9,8 +9,8 @@ import (
 )
 
 func main() {
-	consumer := "1Y0uYPJR6KHalsUF06QMQOdPr"
-	secret := "Rywpmbeg4PgpGwg6yOhrDn4uoG2sAAcB24rRKDmFgmQumeIZz3"
+	consumer := ""
+	secret := ""
 	twitter, err := twitter.NewTwitterClient(consumer, secret)
 	if err != nil {
 		fmt.Println(err)
