@@ -1,8 +1,6 @@
 package twitter
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -28,8 +26,7 @@ const (
 
 // Twitter ...
 type Twitter struct {
-	oauth    Oauth
-	Statuses *Statuses
+	oauth OAuth
 }
 
 // Token ...
@@ -38,8 +35,8 @@ type Token struct {
 	AccessToken string `json:"access_token"`
 }
 
-// Oauth ...
-type Oauth struct {
+// OAuth ...
+type OAuth struct {
 	ConsumerKey       string
 	ConsumerSecret    string
 	Version           string
@@ -51,9 +48,9 @@ type Oauth struct {
 	AOAToken Token
 }
 
-// New TwitterClient ...
-func NewTwitterClient(consumerKey, consumerSecret string) (*Twitter, error) {
-	oauth := Oauth{
+// NewClient returns twitter client
+func NewClient(consumerKey, consumerSecret string) (*Twitter, error) {
+	oauth := OAuth{
 		ConsumerKey:     consumerKey,
 		ConsumerSecret:  consumerSecret,
 		Version:         "1.0",
@@ -64,10 +61,8 @@ func NewTwitterClient(consumerKey, consumerSecret string) (*Twitter, error) {
 		return nil, err
 	}
 
-	fmt.Println(oauth)
 	return &Twitter{
-		oauth:    oauth,
-		Statuses: newStatuses(oauth),
+		oauth: oauth,
 	}, nil
 }
 
@@ -112,11 +107,16 @@ func (t *Twitter) AccessToken(code string) error {
 	// set result
 	t.oauth.Token = m.Get("oauth_token")
 	t.oauth.TokenSecret = m.Get("oauth_token_secret")
-
 	return nil
 }
 
-func (oauth *Oauth) requestToken() error {
+// Token ...
+func (t *Twitter) Token(token, secret string) {
+	t.oauth.Token = token
+	t.oauth.TokenSecret = secret
+}
+
+func (oauth *OAuth) requestToken() error {
 	v := url.Values{}
 	v.Set("oauth_callback", "oob")
 
@@ -155,41 +155,4 @@ func (oauth *Oauth) requestToken() error {
 	oauth.TokenSecret = m.Get("oauth_token_secret")
 	oauth.CallbackConfirmed = m.Get("oauth_callback_confirmed")
 	return nil
-}
-
-// AuthAOA registers in twitter API and returns bearer key
-func AuthAOA(consumer, secret string) (*Twitter, error) {
-	credentials := strings.Join([]string{consumer, secret}, ":")
-	encoded := base64.StdEncoding.EncodeToString([]byte(credentials))
-
-	body := strings.NewReader("grant_type=client_credentials")
-
-	req, err := http.NewRequest("POST", twitterAuth, body)
-	req.Header.Add("Content-Type", contentType)
-	req.Header.Add("Authorization", "Basic "+encoded)
-	req.Header.Add("User-Agent", userAgent)
-
-	client := &http.Client{Timeout: time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s is not available: code=%d", twitterAuth, resp.StatusCode)
-	}
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var oauth Oauth
-	if err = json.Unmarshal(bodyBytes, &oauth.AOAToken); err != nil {
-		return nil, err
-	}
-
-	return &Twitter{
-		Statuses: newStatuses(oauth),
-	}, nil
 }

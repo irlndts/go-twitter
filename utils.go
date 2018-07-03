@@ -74,7 +74,7 @@ func normalizeParameters(v url.Values) string {
 }
 
 // oauthAuthorizationHeader prepares authorization header
-func oauthAuthorizationHeader(oauth Oauth, method, uri string, v url.Values) string {
+func oauthAuthorizationHeader(oauth OAuth, method, uri string, v url.Values) string {
 	v.Set("oauth_nonce", nonce())
 	v.Set("oauth_timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 	v.Set("oauth_consumer_key", oauth.ConsumerKey)
@@ -102,7 +102,7 @@ func oauthAuthorizationHeader(oauth Oauth, method, uri string, v url.Values) str
 	v.Set("oauth_signature", base64.URLEncoding.EncodeToString(mac.Sum(nil)))
 
 	var oauths []string
-	for k, _ := range v {
+	for k := range v {
 		// get only oauth_ params to set them into authorization string
 		if strings.HasPrefix(k, "oauth_") && k != "oauth_verifier" {
 			oauths = append(oauths, k+`="`+url.QueryEscape(v.Get(k))+`"`)
