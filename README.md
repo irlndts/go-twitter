@@ -26,7 +26,7 @@ func main(){
 		panic(err)
 	}
 
-	twitter.Token(oauthToken, oauthTokenSecret)
+	twitter.Token(accessToken, accessTokenSecret)
 	if err = twitter.Update("Hello, twitter!"); err != nil {
 		panic(err)
     	}
