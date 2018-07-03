@@ -31,14 +31,10 @@ func (t *Twitter) Update(status string) error {
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
+	_, err = ioutil.ReadAll(resp.Body)
 	//TODO(irlndts): parse response
-	fmt.Println(string(bodyBytes))
 
-	return nil
+	return err
 }
 
 // UserTimeline ...
