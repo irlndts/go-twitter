@@ -20,7 +20,6 @@ func nonce() string {
 	rand.Read(token)
 
 	var nonce string
-
 	encoded := base64.StdEncoding.EncodeToString(token)
 	for _, e := range encoded {
 		if unicode.IsLetter(e) {

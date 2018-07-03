@@ -10,18 +10,17 @@ import (
 )
 
 const (
-	twitterAPI  = "https://api.twitter.com/1.1/"
-	twitterAuth = "https://api.twitter.com/oauth2/token"
+	twitterAPI = "https://api.twitter.com/1.1/"
 
-	twitterOauthURL             = "https://api.twitter.com/oauth"
-	twitterRequestTokenURL      = twitterOauthURL + "/request_token"
-	twitterAccessTokenURL       = twitterOauthURL + "/access_token"
-	twitterOauthAuthenticateURL = twitterOauthURL + "/authenticate"
+	twitterOAuthURL             = "https://api.twitter.com/oauth"
+	twitterRequestTokenURL      = twitterOAuthURL + "/request_token"
+	twitterAccessTokenURL       = twitterOAuthURL + "/access_token"
+	twitterOauthAuthenticateURL = twitterOAuthURL + "/authenticate"
 
 	twitterStatusesUpdate = "https://api.twitter.com/1.1/statuses/update.json"
 
 	contentType = "application/x-www-form-urlencoded;charset=UTF-8"
-	userAgent   = "go-twitter v0.1"
+	userAgent   = "github.com/irlndts/go-twitter v0.1"
 )
 
 // Twitter ...
@@ -73,11 +72,13 @@ func (t *Twitter) OAuthAuthentificateURL() string {
 
 // AccessToken ...
 func (t *Twitter) AccessToken(code string) error {
-
 	v := url.Values{}
 	v.Set("oauth_verifier", code)
 
 	req, err := http.NewRequest("POST", twitterAccessTokenURL, strings.NewReader(normalizeParameters(v)))
+	if err != nil {
+		return err
+	}
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("User-Agent", userAgent)
 	req.Header.Add("Authorization",

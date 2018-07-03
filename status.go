@@ -15,6 +15,9 @@ func (t *Twitter) Update(status string) error {
 	v.Set("status", status)
 
 	req, err := http.NewRequest("POST", twitterStatusesUpdate, strings.NewReader(normalizeParameters(v)))
+	if err != nil {
+		return err
+	}
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("User-Agent", userAgent)
 	req.Header.Add("Authorization",
@@ -32,6 +35,7 @@ func (t *Twitter) Update(status string) error {
 	if err != nil {
 		return err
 	}
+	//TODO(irlndts): parse response
 	fmt.Println(string(bodyBytes))
 
 	return nil
@@ -43,6 +47,9 @@ func (t *Twitter) UserTimeline(name string) error {
 	url := twitterAPI + `statuses/user_timeline.json` + "?" + body
 
 	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil
+	}
 	req.Header.Add("Content-Type", contentType)
 	req.Header.Add("Authorization", "Bearer "+t.oauth.AOAToken.AccessToken)
 	req.Header.Add("User-Agent", userAgent)
@@ -57,10 +64,8 @@ func (t *Twitter) UserTimeline(name string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%s is not available: code=%d", url, resp.StatusCode)
 	}
-	_, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	_, err = ioutil.ReadAll(resp.Body)
+	//TODO(irlndts): parse response
+	return err
 }
