@@ -49,7 +49,7 @@ func main(){
 	
 	// use the code client has got
 	code := "12345"
-	if err = twitter.AccessToken("1345"); err != nil {
+	if err = twitter.AccessToken(code); err != nil {
 		panic(err)
 	}
 
