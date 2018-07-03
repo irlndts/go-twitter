@@ -22,27 +22,27 @@ func main(){
 	accessTokenSecret := "access token secret"
 
 	twitter, err := twitter.NewClient(consumer, secret)
-    if err != nil {
+	if err != nil {
 		panic(err)
-    }
+	}
 
 	twitter.Token(oauthToken, oauthTokenSecret)
 	if err = twitter.Update("Hello, twitter!"); err != nil {
 		panic(err)
-    }
+    	}
 }
 ```
 
 If you want to allow other users use your app, you should ask them to authenticate
 ```go
 func main(){
-    consumer := "consumer key"
-    secret := "consumer secret"
+	consumer := "consumer key"
+	secret := "consumer secret"
 
 	twitter, err := twitter.NewClient(consumer, secret)
-    if err != nil {
+	if err != nil {
 		panic(err)
-    }
+    	}
 	
 	// ask your client to visit the link, authorize app and receive authentication code
 	fmt.Printf("visit %s\n", twitter.OAuthAuthentificateURL())
@@ -51,10 +51,10 @@ func main(){
 	code := "12345"
 	if err = twitter.AccessToken("1345"); err != nil {
 		panic(err)
-    }
+	}
 
 	if err = twitter.Update("Hello, twitter!"); err != nil {
-        panic(err)
-    }
+		panic(err)
+   	}
 }
 ```
