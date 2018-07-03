@@ -8,11 +8,11 @@ go get github.com/irlndts/go-twitter
 
 ## Usage
 
-First of all your application requires `Consumer Key` and `Consumer Secret`. 
+First of all your application requires Consumer Key and Consumer Secret. 
 Create your app here https://apps.twitter.com
-Switch to `Keys and Access Tokens` and find `Consumer Key` and `Consumer Secret` there.
+Switch to `Keys and Access Tokens` and find Consumer Key and Consumer Secret there.
 
-If you use the app by yourself only use `Access Token` and `Access Token Secret` from the same page.
+If you use the app by yourself only use Access Token and Access Token Secret from the same page.
 
 ```go
 func main(){
