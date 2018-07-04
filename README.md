@@ -21,15 +21,9 @@ func main(){
 	accessToken := "access token"
 	accessTokenSecret := "access token secret"
 
-	twitter, err := twitter.NewClient(consumer, secret)
-	if err != nil {
-		panic(err)
-	}
-
+	twitter, _ := twitter.NewClient(consumer, secret)
 	twitter.Token(accessToken, accessTokenSecret)
-	if err = twitter.Update("Hello, twitter!"); err != nil {
-		panic(err)
-    	}
+	twitter.Update("Hello, twitter!")
 }
 ```
 
@@ -39,22 +33,13 @@ func main(){
 	consumer := "consumer key"
 	secret := "consumer secret"
 
-	twitter, err := twitter.NewClient(consumer, secret)
-	if err != nil {
-		panic(err)
-    	}
+	twitter, _ := twitter.NewClient(consumer, secret)
 	
 	// ask your client to visit the link, authorize app and receive authentication code
 	fmt.Printf("visit %s\n", twitter.OAuthAuthentificateURL())
-	
-	// use the code client has got
+	// wait for the code
 	code := "12345"
-	if err = twitter.AccessToken(code); err != nil {
-		panic(err)
-	}
-
-	if err = twitter.Update("Hello, twitter!"); err != nil {
-		panic(err)
-   	}
+	twitter.AccessToken(code)
+	twitter.Update("Hello, twitter!")
 }
 ```
